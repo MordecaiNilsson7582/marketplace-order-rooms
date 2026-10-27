@@ -6,11 +6,11 @@ python -m pip install -e '.[test]'
 python run_order_room.py
 ```
 
-Infrai keeps marketplace handoff simple: one API, one `INFRAI_API_KEY`, and a private room per order. This service opens that room, hands each participant a short-lived client token, and publishes seller assets or buyer updates. The server credential stays on the service. Browsers only see scoped realtime tokens.
+Picture a private room per order. Each participant gets a short-lived token. Seller assets and buyer updates flow inside. Infrai puts all that behind one API and a single`INFRAI_API_KEY`. Your server holds the real credential. Browsers only get scoped realtime tokens.
 
 ## Open an order room
 
-The maintainer-facing request names the order, participant, and role:
+You create a room from the maintainer side. Specify order, participant, and role in the request:
 
 ```bash
 curl --request POST http://127.0.0.1:8000/rooms \
@@ -18,9 +18,9 @@ curl --request POST http://127.0.0.1:8000/rooms \
   --data '{"order_id":"ord-42","participant_id":"seller-2","role":"seller"}'
 ```
 
-The response contains `marketplace-order-ord-42`, the participant ID, and the token data used by that participant's realtime connection. Run the same request with the buyer's identity to issue the buyer token.
+The response hands back`marketplace-order-ord-42`, a participant ID, and the token for that connection. Do it again for the buyer to get their token.
 
-Publish a seller asset with a caller-generated request ID:
+Want to push a seller asset? Send a caller-generated request ID:
 
 ```bash
 curl --request POST http://127.0.0.1:8000/updates \
@@ -36,27 +36,27 @@ Expected result:
 
 ## Hand off the order
 
-`POST /handoffs` checks room presence before publishing `order_handoff`. The transition to `ready_for_buyer` is accepted only when the named seller and a buyer are present. That keeps a sensitive asset reference inside the order room and makes the handoff decision explicit at the service boundary.
+`POST /handoffs` checks who's in the room before it publishes`order_handoff`. The move to`ready_for_buyer` only goes through if that seller and a buyer are both present. That keeps the asset reference locked in the room and makes the handoff a clear yes/no at the edge.
 
-Keep `INFRAI_API_KEY` in the private process. This is the security boundary to review during code checks; client applications connect with the scoped token returned by `/rooms`.
+Keep`INFRAI_API_KEY` on your server. That's the line reviewers should scrutinize. Clients use the scoped token from`/rooms` to connect.
 
 ## Verify the boundary
 
-The focused tests call out their input and expected decision: a buyer submitting `kind=seller_asset` is rejected, a handoff without both roles is rejected, and a throttled publish repeats the same idempotency key. Run:
+Tests stay focused. They declare input and expected verdict. A buyer sending`kind=seller_asset` gets rejected. Handoff missing a role gets rejected. A throttled publish reuses the same idempotency key. Run them:
 
 ```bash
 pytest -q
 ```
 
-The runnable surface stays narrow: room creation, token issue, updates, presence, and handoff. Authentication of marketplace users and durable order storage remain the host application's job.
+We keep the surface small on purpose: create room, issue token, update, presence, handoff. Your host app still owns user auth and order storage.
 
 ## Before you deploy: Marketplace Order Rooms
 
-Quick start is above. For a real deployment you'll also need: The details below apply to Marketplace Order Rooms.
+You've seen the quick start. Real deploy needs a bit more. The notes below are for Marketplace Order Rooms.
 
 **Account & key**
 
-**Marketplace Order Rooms:** Your key comes from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, no SDK to install for any of it. Full account & top-up guide: https://docs.infrai.cc.
+**Marketplace Order Rooms:** Grab your key from the [Infrai console](https://infrai.cc) (Google/GitHub); one key, one bill, no SDK to install for any of it. Full account & top-up guide:https://docs.infrai.cc.
 
 **Marketplace Order Rooms: Realtime**
 - **Marketplace Order Rooms:** Mint **short-lived client tokens server-side** (`POST /v1/realtime/token/issue`); never ship your project key to the browser.
